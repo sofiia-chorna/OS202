@@ -72,3 +72,42 @@ Quelle est à votre avis la probabilité d’avoir un interblocage ?
 À mon avis, la probabilité d'interblocage dépend de la façon dont les messages sont échangés entre les processus et de la taille du système. Dans cet exemple, si les messages sont de taille suffisamment petite et que le réseau MPI est rapide, il est possible que l'interblocage ne se produise pas souvent. Cependant, cela peut varier en fonction de nombreux autres facteurs, y compris la charge du système et les caractéristiques de la communication réseau.
 
 Pour éviter l'interblocage, il est important de concevoir vos algorithmes de communication de manière à minimiser les attentes mutuelles et à utiliser des techniques telles que le partage des ressources et la communication non bloquante lorsque cela est possible.
+
+### 1.2 Question du cours n°2
+Alice a parallélisé en partie un code sur machine à mémoire distribuée. Pour un jeu de données spécifiques, elle remarque que la partie qu’elle exécute en parallèle représente en temps de traitement 90% du
+temps d’exécution du programme en séquentiel. 
+En utilisant la loi d’Amdhal, pouvez-vous prédire l’accélération maximale que pourra obtenir Alice  avec son code (en considérant n ≫ 1) ? 
+À votre avis, pour ce jeu de donné spécifique, quel nombre de nœuds de calcul semble-t-il raisonnable  de prendre pour ne pas trop gaspiller de ressources CPU ? 
+En effectuant son cacul sur son calculateur, Alice s’aperçoit qu’elle obtient une accélération maximale de quatre en augmentant le nombre de nœuds de calcul pour son jeu spécifique de données. 
+En doublant la quantité de donnée à traiter, et en supposant la complexité de l’algorithme parallèle linéaire, quelle accélération maximale peut espérer Alice en utilisant la loi de Gustafson ?
+
+#### Reponse
+1. Prédire l’accélération maximale ? (n >> 1)
+Suivant la loi d’Amdhal :
+```
+S = n / (1 + (n - 1) * f) = | si n -> infinity | = 1 / f = 1 / (1 - 0.9) = 1 / 0.1 = 10
+```
+2. Quel nombre de nœuds est raisonnable pour ne pas trop gaspiller CPU ?
+```
+S = n / (1 + (n - 1) * f) => n = s * (1 - f) / (1 - sf)
+```
+J'ai essayée d'utiliser les valeurs differentes de n pour observer l'acélération. 
+n = 10000 => s = 9.99
+n = 1000 => s = 9
+n = 100 => s = 9.9
+n = 3 => s = 2.5
+
+Ensuite, j'ai comptée quel sera le valeur du n pour que s = 9 : _n >= 81_
+
+3. Acceleration est 4 en max. la loi de Gustafson -> quel est accélération maximal ?
+En doublant la quantité des données => f = 0.1 * 2 = 0.2.
+Selon loi de Gustafson :
+```
+S = f + (1 - f) n = 0.2 + 0.8n
+```
+
+On connait qu'Alice a obtenué S = 4, donc :
+```
+0.2 + 0.8n = 4 => n = 0.8 / 3.8 = 4.75
+```
+Alors, on a besoin de 5 noeds.
