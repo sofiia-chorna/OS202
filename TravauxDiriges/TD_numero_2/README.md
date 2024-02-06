@@ -132,3 +132,29 @@ Temps du calcul de l'ensemble de Mandelbrot : 2.4104251861572266
 Speedup: 1.2563955135362257
 ```
 Ces résultats indiquent que l'utilisation d'une stratégie maître-esclave pour distribuer les différentes lignes de l'image à calculer a permis d'obtenir un speedup d'environ 1.256 par rapport à l'exécution séquentielle. Cela signifie que l'exécution parallèle avec la stratégie maître-esclave a été environ 1.256 fois plus rapide que l'exécution séquentielle. Cette amélioration de la performance montre l'efficacité de la parallélisation du calcul de l'ensemble de Mandelbrot avec MPI dans ce contexte.
+
+Pour exécuter le script, utilisez la commande suivante :
+```
+mpirun -n [nombre_de_processus] python3 mpi_mandelbrot_master_slave.py [largeur] [hauteur] [nombre_de_fragments]
+```
+
+- `[nombre_de_processus]`: Nombre de processus MPI à utiliser pour le calcul parallèle.
+- `[largeur]`: Largeur de l'image de sortie.
+- `[hauteur]`: Hauteur de l'image de sortie.
+- `[nombre_de_fragments]`: Nombre de fragments d'image à répartir entre les processus MPI pour le calcul parallèle.
+
+Par exemple :
+```
+mpirun -n 4 python3 mpi_mandelbrot_master_slave.py 1024 1024 8
+```
+
+
+### 1.4 Produit matrice–vecteur
+ ![La tache - question 4](tache_q4.png)
+
+#### Reponse
+Pour la première approche, où nous avons parallélisé le produit matrice-vecteur par colonne, chaque tâche a été chargée de calculer la somme partielle du produit en utilisant un découpage par bloc de colonnes de la matrice. La valeur de Nloc, le nombre de colonnes dans chaque bloc, a été calculée en fonction du nombre de tâches. Le code séquentiel a été adapté pour que chaque tâche ne calcule que la partie de la matrice nécessaire à sa somme partielle du produit matrice-vecteur. À la fin du programme, nous avons vérifié que toutes les tâches contenaient le vecteur résultat complet.
+
+Quant à la deuxième approche, où nous avons parallélisé le produit matrice-vecteur par ligne, nous avons partitionné la matrice par un découpage par bloc de lignes, chaque tâche étant chargée de calculer la somme partielle du produit en utilisant Nloc lignes de la matrice. La valeur de Nloc a été calculée en fonction du nombre de tâches. Le code séquentiel a été modifié pour que chaque tâche ne calcule que la partie de la matrice nécessaire à son produit matrice-vecteur partiel. À la fin du programme, nous nous sommes assurés que toutes les tâches contenaient le vecteur résultat complet.
+
+Les fichiers: _matvec_lines.py_ et _matvec_colonnes.py_

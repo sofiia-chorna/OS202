@@ -1,4 +1,5 @@
 # Calcul de l'ensemble de Mandelbrot en python avec MPI maître-esclave
+import sys
 import numpy as np
 from PIL import Image
 from time import time
@@ -6,12 +7,20 @@ import matplotlib.cm
 from mpi4py import MPI
 from mandelbrot_set import MandelbrotSet
 
+# Récupérer les arguments de la ligne de commande
+if len(sys.argv) != 4:
+    print("Usage: mpirun -n [number_of_processes] python3 mpi_mandelbrot_master_slave.py [width] [height] [number_of_fragments]")
+    sys.exit(1)
+
+width = int(sys.argv[1])
+height = int(sys.argv[2])
+num_fragments = int(sys.argv[3])
+
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 size = comm.Get_size()
 
 mandelbrot_set = MandelbrotSet(max_iterations=50, escape_radius=10)
-width, height = 1024, 1024
 scaleX = 3. / width
 scaleY = 2.25 / height
 
