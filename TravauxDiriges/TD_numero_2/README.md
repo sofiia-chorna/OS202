@@ -111,3 +111,24 @@ On connait qu'Alice a obtenué S = 4, donc :
 0.2 + 0.8n = 4 => n = 0.8 / 3.8 = 4.75
 ```
 Alors, on a besoin de 5 noeds.
+
+### 1.3 Ensemble de mandelbrot
+ ![La tache - question 2](tache_q2.png)
+
+1. À partir du code séquentiel mandelbrot.cpp, faire une partition équitable par ligne de l’image à
+calculer pour distribuer le calcul sur les nbp tâches exécutées par l’utilisateur puis rassembler l’image
+sur le processus zéro pour la sauvegarder. Calculer le temps d’exécution pour différents nombre de
+tâches et calculer le speedup. Comment interpréter les résultats obtenus ?
+#### Reponse
+Le temps de calcul de l'ensemble de Mandelbrot est d'environ 2,43 secondes, et le speedup obtenu est d'environ 1,25. Cela signifie que la version parallélisée du calcul est environ 1,25 fois plus rapide que la version séquentielle. Cette amélioration de performance est significative, mais il est possible qu'il y ait encore des possibilités d'optimisation pour atteindre des gains de vitesse plus importants.
+(fichier _mandelbrot.py_)
+![Graph](graph1.png)
+
+2. Mettre en œuvre une stratégie maître–esclave pour distribuer les différentes lignes de l’image à
+calculer. Calculer le speedup avec cette nouvelle approche. Qu’en conclure ?
+#### Reponse
+```
+Temps du calcul de l'ensemble de Mandelbrot : 2.4104251861572266
+Speedup: 1.2563955135362257
+```
+Ces résultats indiquent que l'utilisation d'une stratégie maître-esclave pour distribuer les différentes lignes de l'image à calculer a permis d'obtenir un speedup d'environ 1.256 par rapport à l'exécution séquentielle. Cela signifie que l'exécution parallèle avec la stratégie maître-esclave a été environ 1.256 fois plus rapide que l'exécution séquentielle. Cette amélioration de la performance montre l'efficacité de la parallélisation du calcul de l'ensemble de Mandelbrot avec MPI dans ce contexte.
