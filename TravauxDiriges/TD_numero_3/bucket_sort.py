@@ -1,26 +1,36 @@
+import sys
 import numpy as np
 from time import time
 import utils
+import constants
 
-N_ELEMENTS = 1000
-MAX_VALUE = 100
-CHUNK_SIZE = 3
 
-start_time = time()
+def main():
+    if len(sys.argv) != 2:
+        print("Usage: python3 bucket_sort.py <value>")
+        return
 
-elements = utils.generate_random(size=N_ELEMENTS, high=MAX_VALUE)
-print(f"Original array : {elements}")
+    bucket_size = int(sys.argv[1])
 
-buckets = utils.split_array(elements, CHUNK_SIZE)
-print(f"Buckets : {buckets}")
+    start_time = time()
 
-for index, bucket in enumerate(buckets):
-    buckets[index] = utils.insertion_sort(bucket)
-    print(f"Index {index}, sorted bucket : {buckets}")
+    elements = utils.generate_random(size=constants.N_ELEMENTS, high=constants.MAX_VALUE)
+    print(f"Original array : {elements}")
 
-sorted_buckets = np.concatenate(buckets)
-print(f"Sorted array : {sorted_buckets}")
+    buckets = utils.split_array(elements, bucket_size)
+    print(f"Buckets : {buckets}")
 
-end_time = time()
-execution_time = end_time - start_time
-print(f"Execution time : {execution_time}")
+    for index, bucket in enumerate(buckets):
+        buckets[index] = utils.insertion_sort(bucket)
+        print(f"Index {index}, sorted bucket : {buckets}")
+
+    sorted_buckets = np.concatenate(buckets)
+    print(f"Sorted array : {sorted_buckets}")
+
+    end_time = time()
+    execution_time = end_time - start_time
+    print(f"Execution time : {execution_time}")
+
+
+if __name__ == "__main__":
+    main()

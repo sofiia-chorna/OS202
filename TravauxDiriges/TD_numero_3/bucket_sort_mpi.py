@@ -2,23 +2,21 @@ from mpi4py import MPI
 import numpy as np
 from time import time
 import utils
-
-N_ELEMENTS = 1000
-MAX_VALUE = 100
+import constants
 
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 size = comm.Get_size()
 
 
-start_time = time()
-
 elements = []
 buckets = []
 
+start_time = time()
+
 # All processes need to initialize empty lists
 if rank == 0:
-    elements = utils.generate_random(size=N_ELEMENTS, high=MAX_VALUE)
+    elements = utils.generate_random(size=constants.N_ELEMENTS, high=constants.MAX_VALUE)
     print(f"Original array : {elements}")
 
     buckets = utils.split_array(elements, size)

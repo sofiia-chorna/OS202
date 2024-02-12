@@ -1,8 +1,5 @@
 import numpy as np
 
-N_ELEMENTS = 1000
-MAX_VALUE = 100
-
 
 def generate_random(size, low=0, high=11):
     return np.random.randint(low=low, high=high, size=size)
