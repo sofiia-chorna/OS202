@@ -1,14 +1,18 @@
-import random
-import numpy as np
 from mpi4py import MPI
+import numpy as np
+from time import time
+
+N_ELEMENTS = 1000
+MAX_VALUE = 100
 
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 size = comm.Get_size()
 
 
-def generate_random(size,  min_num=0, max_num=10):
-    return [random.randint(min_num, max_num) for i in range(size)]
+def generate_random(size, low=0, high=11):
+    return np.random.randint(low=low, high=high, size=size)
+
 
 def insertion_sort(array):
     for i in range(1, len(array)):
@@ -21,39 +25,43 @@ def insertion_sort(array):
     return array
 
 
-def bubble_sort(elements):
-    for i in range(len(elements) - 1):
-        if elements[i] < elements[i + 1]:
-            temp = elements[i + 1]
-            elements[i + 1] = elements[i]
-            elements[i] = temp
-    return elements
-
-
-def bucket_sort(elements, k):
-    if k < 5:
-        return ValueError(f"k is too small, increase the value")
-
-    buckets = [[] for _i in range(k)]
-    max = 1 + np.max(elements)
+def split(elements, bucket_size):
+    buckets = np.empty(bucket_size, dtype=object)
+    buckets[:] = [[] for _ in range(bucket_size)]
+    m = 1 + np.max(elements)
     for i in range(len(elements)):
-        buckets[int(np.floor(k * elements[i] / max))].append(elements[i])
-
-    # Individual sort of the buckets
-    for index, bucket in enumerate(buckets):
-        buckets[index] = bubble_sort(bucket)
-
-    # Concatenate the result
-    key = 0
-    for i in range(k):
-        for j in range(len(buckets[i])):
-            elements[key] = buckets[i][j]
-            key += 1
-    return elements
+        index = int(np.floor(bucket_size * elements[i] / m))
+        buckets[index].append(elements[i])
+    return buckets
 
 
-elements = generate_random(5)
-print(f"Original array : {elements}")
+start_time = time()
 
-elements = bucket_sort(elements, 10)
-print(f"Sorted array : {elements}")
+elements = []
+buckets = []
+
+# All processes need to initialize empty lists
+if rank == 0:
+    elements = generate_random(size=N_ELEMENTS, high=MAX_VALUE)
+    print(f"Original array : {elements}")
+
+    buckets = split(elements, size)
+    print(f"Buckets : {buckets}")
+
+# Scatter les buckets to different processes
+buckets = comm.scatter(buckets, root=0)
+
+# Sort values in each bucket
+buckets = insertion_sort(buckets)
+print(f"Rank {rank}, sorted bucket : {buckets}")
+
+# Gather buckets together
+buckets = comm.gather(buckets, root=0)
+
+if rank == 0:
+    sorted_buckets = np.concatenate(buckets)
+    print(f"Sorted array : {sorted_buckets}")
+
+    end_time = time()
+    execution_time = end_time - start_time
+    print(f"Execution time : {execution_time}")
