@@ -137,7 +137,7 @@ if __name__ == '__main__':
                 end=''
             )
 
-            # Stop game
-            for event in pg.event.get():
-                if event.type == pg.QUIT:
-                    pg.quit()
+        # Stop game
+        for event in pg.event.get():
+            if event.type == pg.QUIT:
+                pg.quit()
