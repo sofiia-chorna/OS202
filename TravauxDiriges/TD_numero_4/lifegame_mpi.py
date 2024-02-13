@@ -23,6 +23,13 @@ On itère ensuite pour étudier la façon dont évolue la population des cellule
 """
 import pygame as pg
 import numpy as np
+from mpi4py import MPI
+import time
+import sys
+
+comm = MPI.COMM_WORLD
+rank = comm.Get_rank()
+size = comm.Get_size()
 
 
 class Grille:
@@ -83,7 +90,7 @@ class Grille:
                 else:
                     next_cells[i, j] = 0  # Morte, elle reste morte.
         self.cells = next_cells
-        return diff_cells
+        return next_cells
 
 
 class App:
@@ -102,19 +109,20 @@ class App:
             self.draw_color = pg.Color('lightgrey')
         else:
             self.draw_color = None
+
         # Ajustement de la taille de la fenêtre pour bien fitter la dimension de la grille
         self.width = grid.dimensions[1] * self.size_x
         self.height = grid.dimensions[0] * self.size_y
+
         # Création de la fenêtre à l'aide de tkinter
         self.screen = pg.display.set_mode((self.width, self.height))
-        #
         self.canvas_cells = []
 
     def compute_rectangle(self, i: int, j: int):
         """
         Calcul la géométrie du rectangle correspondant à la cellule (i,j)
         """
-        return (self.size_x * j, self.height - self.size_y * i - 1, self.size_x, self.size_y)
+        return self.size_x * j, self.height - self.size_y * i - 1, self.size_x, self.size_y
 
     def compute_color(self, i: int, j: int):
         if self.grid.cells[i, j] == 0:
@@ -125,7 +133,7 @@ class App:
     def draw(self):
         [self.screen.fill(self.compute_color(i, j), self.compute_rectangle(i, j)) for i in
          range(self.grid.dimensions[0]) for j in range(self.grid.dimensions[1])]
-        if (self.draw_color is not None):
+        if self.draw_color is not None:
             [pg.draw.line(self.screen, self.draw_color, (0, i * self.size_y), (self.width, i * self.size_y)) for i in
              range(self.grid.dimensions[0])]
             [pg.draw.line(self.screen, self.draw_color, (j * self.size_x, 0), (j * self.size_x, self.height)) for j in
@@ -134,9 +142,6 @@ class App:
 
 
 if __name__ == '__main__':
-    import time
-    import sys
-
     pg.init()
     dico_patterns = {  # Dimension et pattern dans un tuple
         'blinker': ((5, 5), [(2, 1), (2, 2), (2, 3)]),
@@ -161,7 +166,7 @@ if __name__ == '__main__':
                     (6, 14), (10, 2), (11, 2), (12, 2), (10, 7), (11, 7), (12, 7), (10, 9), (11, 9), (12, 9), (10, 14),
                     (11, 14), (12, 14)]),
         "floraison": (
-        (40, 40), [(19, 18), (19, 19), (19, 20), (20, 17), (20, 19), (20, 21), (21, 18), (21, 19), (21, 20)]),
+            (40, 40), [(19, 18), (19, 19), (19, 20), (20, 17), (20, 19), (20, 21), (21, 18), (21, 19), (21, 20)]),
         "block_switch_engine": ((400, 400),
                                 [(201, 202), (201, 203), (202, 202), (202, 203), (211, 203), (212, 204), (212, 202),
                                  (214, 204), (214, 201), (215, 201), (215, 202), (216, 201)]),
@@ -190,18 +195,32 @@ if __name__ == '__main__':
         print("No such pattern. Available ones are:", dico_patterns.keys())
         exit(1)
     grid = Grille(*init_pattern)
-    appli = App((resx, resy), grid)
+
+    if rank == 1:
+        appli = App((resx, resy), grid)
 
     while True:
+        if rank == 0:
+            t1 = time.time()
+            next_cells = grid.compute_next_iteration()
+            comm.send(next_cells, dest=1, tag=11)
+            t2 = time.time()
+            comm.send((t1, t2), dest=1, tag=12)
+
         # time.sleep(0.5) # A régler ou commenter pour vitesse maxi
-        t1 = time.time()
-        diff = grid.compute_next_iteration()
-        t2 = time.time()
-        appli.draw()
-        t3 = time.time()
-        for event in pg.event.get():
-            if event.type == pg.QUIT:
-                pg.quit()
-        print(
-            f"Temps calcul prochaine generation : {t2 - t1:2.2e} secondes, temps affichage : {t3 - t2:2.2e} secondes\r",
-            end='')
+
+        if rank == 1:
+            next_cells = comm.recv(source=0, tag=11)
+            grid.cells = next_cells
+            appli.draw()
+
+            t3 = time.time()
+
+            t1, t2 = comm.recv(source=0, tag=12)
+            print(
+                f"Temps calcul prochaine generation : {t2 - t1:2.2e} secondes, temps affichage : {t3 - t2:2.2e} secondes\r",
+                end='')
+
+            for event in pg.event.get():
+                if event.type == pg.QUIT:
+                    pg.quit()
