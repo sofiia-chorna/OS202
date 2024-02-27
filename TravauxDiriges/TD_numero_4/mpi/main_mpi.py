@@ -41,7 +41,6 @@ if __name__ == '__main__':
     # Validate the pattern
     try:
         init_pattern = patterns.DICO_PATTERNS[choice]
-        print("init_pattern", init_pattern)
     except KeyError:
         print("No such pattern. Available ones are:", patterns.DICO_PATTERNS.keys())
         exit(1)
@@ -78,6 +77,7 @@ if __name__ == '__main__':
             grid.cells = next_cells
             appli.draw()
             t3 = time.time()
+            # print("appli.draw()")
 
             # Display time of calculation
             t1, t2 = comm.recv(source=0, tag=TAG_TIME)

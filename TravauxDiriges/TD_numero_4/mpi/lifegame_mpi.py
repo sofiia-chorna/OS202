@@ -22,7 +22,6 @@ et inversement.
 On itère ensuite pour étudier la façon dont évolue la population des cellules sur la grille.
 """
 import pygame as pg
-import numpy as np
 from mpi4py import MPI
 import time
 import sys
