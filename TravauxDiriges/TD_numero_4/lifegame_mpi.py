@@ -1,11 +1,33 @@
+"""
+Le jeu de la vie
+################
+Le jeu de la vie est un automate cellulaire inventé par Conway se basant normalement sur une grille infinie
+de cellules en deux dimensions. Ces cellules peuvent prendre deux états :
+    - un état vivant
+    - un état mort
+A l'initialisation, certaines cellules sont vivantes, d'autres mortes.
+Le principe du jeu est alors d'itérer de telle sorte qu'à chaque itération, une cellule va devoir interagir avec
+les huit cellules voisines (gauche, droite, bas, haut et les quatre en diagonales.) L'interaction se fait selon les
+règles suivantes pour calculer l'irération suivante :
+    - Une cellule vivante avec moins de deux cellules voisines vivantes meurt ( sous-population )
+    - Une cellule vivante avec deux ou trois cellules voisines vivantes reste vivante
+    - Une cellule vivante avec plus de trois cellules voisines vivantes meurt ( sur-population )
+    - Une cellule morte avec exactement trois cellules voisines vivantes devient vivante ( reproduction )
+
+Pour ce projet, on change légèrement les règles en transformant la grille infinie en un tore contenant un
+nombre fini de cellules. Les cellules les plus à gauche ont pour voisines les cellules les plus à droite
+et inversement, et de même les cellules les plus en haut ont pour voisines les cellules les plus en bas
+et inversement.
+
+On itère ensuite pour étudier la façon dont évolue la population des cellules sur la grille.
+"""
+import pygame as pg
 from mpi4py import MPI
 import time
 import sys
+from OS202.TravauxDiriges.TD_numero_4 import grille_mpi
+import app
 import patterns
-import numpy as np
-import pygame as pg
-from grille import Grille
-from app import App
 
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
@@ -46,17 +68,11 @@ if __name__ == '__main__':
         exit(1)
 
     # Init grid in each process
-    sub_dim = (init_pattern[0][0] // size, init_pattern[0][1] // size)
-    start_i = sub_dim[0] * rank
-    end_i = sub_dim[0] * (rank + 1)
-    start_j = sub_dim[1] * rank
-    end_j = sub_dim[1] * (rank + 1)
+    grid = grille.Grille(*init_pattern)
 
-    sub_pattern = (sub_dim, [(coord[0] - start_i, coord[1] - start_j) for coord in init_pattern[1]])
-    grid = Grille(sub_dim, sub_pattern)
-
-    # Init app
-    appli = App((RES_X, RES_Y), grid)
+    # Init app in one process
+    if rank == 1:
+        appli = app.App((RES_X, RES_Y), grid)
 
     while True:
         if rank == 0:
@@ -77,9 +93,8 @@ if __name__ == '__main__':
             grid.cells = next_cells
             appli.draw()
             t3 = time.time()
-            # print("appli.draw()")
 
-            # Display time of calculation
+            # Display time of calcul
             t1, t2 = comm.recv(source=0, tag=TAG_TIME)
             print(
                 f"Temps calcul prochaine generation : {t2 - t1:2.2e} secondes, temps affichage : {t3 - t2:2.2e} secondes\r",

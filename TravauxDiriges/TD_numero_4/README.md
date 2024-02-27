@@ -6,11 +6,16 @@ Ce TD consiste à implémenter un automate cellulaire en utilisant le modèle de
 ## Exécution
 
 ```
-mpiexec -n <number of processus> python main_mpi.py
+mpiexec -n <number of processus> python3 main_mpi.py
 ```
 Par example, pour exécuter avec 4 processus :
 ```
-mpiexec -n 4 python main_mpi.py
+mpiexec -n 4 python3 main_mpi.py
+```
+
+Pour le programme sans MPI, exécutez :
+```
+python3 lifegame.py
 ```
 
 ## Résultats
