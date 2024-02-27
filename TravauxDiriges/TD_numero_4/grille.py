@@ -1,5 +1,10 @@
 import numpy as np
 import pygame as pg
+from mpi4py import MPI
+
+comm = MPI.COMM_WORLD
+rank = comm.Get_rank()
+size = comm.Get_size()
 
 
 class Grille:
@@ -12,18 +17,15 @@ class Grille:
         - color_dead est la couleur dans laquelle on affiche une cellule morte
     Si aucun pattern n'est donné, on tire au hasard quels sont les cellules vivantes et les cellules mortes
     Exemple :
-       grid = Grille( (10,10), init_pattern=[(2,2),(0,2),(4,2),(2,0),(2,4)], color_life=pg.Color("red"), color_dead=pg.Color("black"))
+       grid = Grille((10,10), init_pattern=[(2,2),(0,2),(4,2),(2,0),(2,4)], color_life=pg.Color("red"), color_dead=pg.Color("black"))
     """
 
-    def __init__(self, dim, init_pattern=None, color_life=pg.Color("black"), color_dead=pg.Color("white")):
+    def __init__(self, dim, sub_pattern, color_life=pg.Color("black"), color_dead=pg.Color("white")):
         self.dimensions = dim
-        if init_pattern is not None:
-            self.cells = np.zeros(self.dimensions, dtype=np.uint8)
-            indices_i = [v[0] for v in init_pattern]
-            indices_j = [v[1] for v in init_pattern]
-            self.cells[indices_i, indices_j] = 1
-        else:
-            self.cells = np.random.randint(2, size=dim, dtype=np.uint8)
+        self.cells = np.zeros(self.dimensions, dtype=np.uint8)
+        indices_i = [v[0] - 51 for v in sub_pattern[1]]
+        indices_j = [v[1] - 51 for v in sub_pattern[1]]
+        self.cells[indices_i, indices_j] = 1
         self.col_life = color_life
         self.col_dead = color_dead
 
@@ -31,9 +33,6 @@ class Grille:
         """
         Calcule la prochaine génération de cellules en suivant les règles du jeu de la vie
         """
-        # Remarque 1: on pourrait optimiser en faisant du vectoriel, mais pour plus de clarté, on utilise les boucles
-        # Remarque 2: on voit la grille plus comme une matrice qu'une grille géométrique. L'indice (0,0) est donc en haut
-        #             à gauche de la grille !
         ny = self.dimensions[0]
         nx = self.dimensions[1]
         next_cells = np.empty(self.dimensions, dtype=np.uint8)
