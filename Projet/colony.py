@@ -10,6 +10,7 @@ UNLOADED, LOADED = False, True
 
 exploration_coefs = 0.
 
+sprites = []
 
 class Colony:
     """
@@ -22,7 +23,7 @@ class Colony:
     """
 
     def __init__(self, nb_ants, pos_init, max_life):
-        # Each ant has is own unique random seed
+        # Each ant has its own unique random seed
         self.seeds = np.arange(1, nb_ants + 1, dtype=np.int64)
         # State of each ant : loaded or unloaded
         self.is_loaded = np.zeros(nb_ants, dtype=np.int8)
@@ -40,10 +41,13 @@ class Colony:
         self.historic_path[:, 0, 1] = pos_init[1]
         # Direction in which the ant is currently facing (depends on the direction it came from).
         self.directions = d.DIR_NONE * np.ones(nb_ants, dtype=np.int8)
-        self.sprites = []
+        # self.sprites = []
+
+    def init(self):
         img = pg.image.load("ants.png").convert_alpha()
         for i in range(0, 32, 8):
-            self.sprites.append(pg.Surface.subsurface(img, i, 0, 8, 8))
+            sprites.append(pg.Surface.subsurface(img, i, 0, 8, 8))
+            # self.sprites.append(pg.Surface.subsurface(img, i, 0, 8, 8))
 
     def return_to_nest(self, loaded_ants, pos_nest, food_counter):
         """
@@ -87,10 +91,10 @@ class Colony:
 
         # Calculating possible exits for each ant in the maze:
         old_pos_ants = self.historic_path[range(0, self.seeds.shape[0]), self.age[:], :]
-        has_north_exit = np.bitwise_and(the_maze.maze[old_pos_ants[:, 0], old_pos_ants[:, 1]], maze.NORTH) > 0
-        has_east_exit = np.bitwise_and(the_maze.maze[old_pos_ants[:, 0], old_pos_ants[:, 1]], maze.EAST) > 0
-        has_south_exit = np.bitwise_and(the_maze.maze[old_pos_ants[:, 0], old_pos_ants[:, 1]], maze.SOUTH) > 0
-        has_west_exit = np.bitwise_and(the_maze.maze[old_pos_ants[:, 0], old_pos_ants[:, 1]], maze.WEST) > 0
+        has_north_exit = np.bitwise_and(the_maze[old_pos_ants[:, 0], old_pos_ants[:, 1]], maze.NORTH) > 0
+        has_east_exit = np.bitwise_and(the_maze[old_pos_ants[:, 0], old_pos_ants[:, 1]], maze.EAST) > 0
+        has_south_exit = np.bitwise_and(the_maze[old_pos_ants[:, 0], old_pos_ants[:, 1]], maze.SOUTH) > 0
+        has_west_exit = np.bitwise_and(the_maze[old_pos_ants[:, 0], old_pos_ants[:, 1]], maze.WEST) > 0
 
         # Reading neighboring pheromones:
         north_pos = np.copy(old_pos_ants)
@@ -194,8 +198,8 @@ class Colony:
 
         # For ants reaching food, we update their states:
         ants_at_food_loc = \
-        np.nonzero(np.logical_and(self.historic_path[unloaded_ants, self.age[unloaded_ants], 0] == pos_food[0],
-                                  self.historic_path[unloaded_ants, self.age[unloaded_ants], 1] == pos_food[1]))[0]
+            np.nonzero(np.logical_and(self.historic_path[unloaded_ants, self.age[unloaded_ants], 0] == pos_food[0],
+                                      self.historic_path[unloaded_ants, self.age[unloaded_ants], 1] == pos_food[1]))[0]
         if ants_at_food_loc.shape[0] > 0:
             ants_at_food = unloaded_ants[ants_at_food_loc]
             self.is_loaded[ants_at_food] = True
@@ -209,10 +213,11 @@ class Colony:
             self.explore(unloaded_ants, the_maze, pos_food, pos_nest, pheromones)
 
         old_pos_ants = self.historic_path[range(0, self.seeds.shape[0]), self.age[:], :]
-        has_north_exit = np.bitwise_and(the_maze.maze[old_pos_ants[:, 0], old_pos_ants[:, 1]], maze.NORTH) > 0
-        has_east_exit = np.bitwise_and(the_maze.maze[old_pos_ants[:, 0], old_pos_ants[:, 1]], maze.EAST) > 0
-        has_south_exit = np.bitwise_and(the_maze.maze[old_pos_ants[:, 0], old_pos_ants[:, 1]], maze.SOUTH) > 0
-        has_west_exit = np.bitwise_and(the_maze.maze[old_pos_ants[:, 0], old_pos_ants[:, 1]], maze.WEST) > 0
+        has_north_exit = np.bitwise_and(the_maze[old_pos_ants[:, 0], old_pos_ants[:, 1]], maze.NORTH) > 0
+        has_east_exit = np.bitwise_and(the_maze[old_pos_ants[:, 0], old_pos_ants[:, 1]], maze.EAST) > 0
+        has_south_exit = np.bitwise_and(the_maze[old_pos_ants[:, 0], old_pos_ants[:, 1]], maze.SOUTH) > 0
+        has_west_exit = np.bitwise_and(the_maze[old_pos_ants[:, 0], old_pos_ants[:, 1]], maze.WEST) > 0
+
         # Marking pheromones:
         [pheromones.mark(self.historic_path[i, self.age[i], :],
                          [has_north_exit[i], has_east_exit[i], has_west_exit[i], has_south_exit[i]]) for i in
@@ -220,6 +225,6 @@ class Colony:
         return food_counter
 
     def display(self, screen):
-        [screen.blit(self.sprites[self.directions[i]],
+        [screen.blit(sprites[self.directions[i]],
                      (8 * self.historic_path[i, self.age[i], 1], 8 * self.historic_path[i, self.age[i], 0])) for i in
          range(self.directions.shape[0])]

@@ -30,7 +30,7 @@ class Maze:
         # We choose the central cell as the initial cell.
         cur_ind = (dimensions[0] // 2, dimensions[1] // 2)
         historic.append(cur_ind)
-        while (len(historic) > 0):
+        while len(historic) > 0:
             cur_ind = historic[-1]
             is_visited[cur_ind] = 1
             # First, we check if there is at least one unvisited neighboring cell of the current cell:
@@ -62,6 +62,7 @@ class Maze:
                 is_visited[cur_ind] = 1
             else:
                 historic.pop()
+
         #  Load patterns for maze display :
         img = pg.image.load("cases.png").convert_alpha()
         for i in range(0, 128, 8):
@@ -77,6 +78,9 @@ class Maze:
                 maze_img.blit(self.cases_img[self.maze[i, j]], (j * 8, i * 8))
 
         return maze_img
+
+    def get_maze(self):
+        return self.maze
 
 
 if __name__ == "__main__":
