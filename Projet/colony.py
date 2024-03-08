@@ -12,6 +12,7 @@ exploration_coefs = 0.
 
 sprites = []
 
+
 class Colony:
     """
     Represent an ant colony. Ants are not individualized for performance reasons!
@@ -25,29 +26,33 @@ class Colony:
     def __init__(self, nb_ants, pos_init, max_life):
         # Each ant has its own unique random seed
         self.seeds = np.arange(1, nb_ants + 1, dtype=np.int64)
+
         # State of each ant : loaded or unloaded
         self.is_loaded = np.zeros(nb_ants, dtype=np.int8)
+
         # Compute the maximal life amount for each ant :
-        #   Updating the random seed :
+        # Updating the random seed :
         self.seeds[:] = np.mod(16807 * self.seeds[:], 2147483647)
+
         # Amount of life for each ant = 75% à 100% of maximal ants life
         self.max_life = max_life * np.ones(nb_ants, dtype=np.int32)
         self.max_life -= np.int32(max_life * (self.seeds / 2147483647.)) // 4
+
         # Ages of ants : zero at beginning
         self.age = np.zeros(nb_ants, dtype=np.int64)
+
         # History of the path taken by each ant. The position at the ant's age represents its current position.
         self.historic_path = np.zeros((nb_ants, max_life + 1, 2), dtype=np.int16)
         self.historic_path[:, 0, 0] = pos_init[0]
         self.historic_path[:, 0, 1] = pos_init[1]
+
         # Direction in which the ant is currently facing (depends on the direction it came from).
         self.directions = d.DIR_NONE * np.ones(nb_ants, dtype=np.int8)
-        # self.sprites = []
 
     def init(self):
         img = pg.image.load("ants.png").convert_alpha()
         for i in range(0, 32, 8):
             sprites.append(pg.Surface.subsurface(img, i, 0, 8, 8))
-            # self.sprites.append(pg.Surface.subsurface(img, i, 0, 8, 8))
 
     def return_to_nest(self, loaded_ants, pos_nest, food_counter):
         """
@@ -64,7 +69,7 @@ class Colony:
 
         in_nest_tmp = self.historic_path[loaded_ants, self.age[loaded_ants], :] == pos_nest
         if in_nest_tmp.any():
-            in_nest_loc = np.nonzero(np.logical_and(in_nest_tmp[:, 0], in_nest_tmp[:, 1]))[0]
+            in_nest_loc = np.nonzero(in_nest_tmp[:, 0] & in_nest_tmp[:, 1])[0]
             if in_nest_loc.shape[0] > 0:
                 in_nest = loaded_ants[in_nest_loc]
                 self.is_loaded[in_nest] = UNLOADED
@@ -77,12 +82,11 @@ class Colony:
         Management of unloaded ants exploring the maze.
 
         Inputs:
-            unloadedAnts: Indices of ants that are not loaded
+            unloaded_ants: Indices of ants that are not loaded
             maze        : The maze in which ants move
             posFood     : Position of food in the maze
             posNest     : Position of the ants' nest in the maze
-            pheromones  : The pheromone map (which also has ghost cells for
-                          easier edge management)
+            pheromones  : The pheromone map (which also has ghost cells for easier edge management)
 
         Outputs: None
         """
@@ -123,8 +127,9 @@ class Colony:
         choices = self.seeds[:] / 2147483647.
 
         # Ants explore the maze by choice or if no pheromone can guide them:
-        ind_exploring_ants = np.nonzero(
-            np.logical_or(choices[unloaded_ants] <= exploration_coefs, max_pheromones[unloaded_ants] == 0.))[0]
+        ind_exploring_ants = \
+            np.nonzero(np.logical_or(choices[unloaded_ants] <= exploration_coefs, max_pheromones[unloaded_ants] == 0.))[
+                0]
         if ind_exploring_ants.shape[0] > 0:
             ind_exploring_ants = unloaded_ants[ind_exploring_ants]
             valid_moves = np.zeros(choices.shape[0], np.int8)
@@ -134,39 +139,41 @@ class Colony:
                 # Calculating indices of ants whose last move was not valid:
                 ind_ants_to_move = ind_exploring_ants[valid_moves[ind_exploring_ants] == 0]
                 self.seeds[:] = np.mod(16807 * self.seeds[:], 2147483647)
+
                 # Choosing a random direction:
                 dir = np.mod(self.seeds[ind_ants_to_move], 4)
                 old_pos = self.historic_path[ind_ants_to_move, self.age[ind_ants_to_move], :]
                 new_pos = np.copy(old_pos)
-                new_pos[:, 1] -= np.logical_and(dir == d.DIR_WEST,
-                                                has_west_exit[ind_ants_to_move]) * np.ones(new_pos.shape[0],
-                                                                                           dtype=np.int16)
-                new_pos[:, 1] += np.logical_and(dir == d.DIR_EAST,
-                                                has_east_exit[ind_ants_to_move]) * np.ones(new_pos.shape[0],
-                                                                                           dtype=np.int16)
-                new_pos[:, 0] -= np.logical_and(dir == d.DIR_NORTH,
-                                                has_north_exit[ind_ants_to_move]) * np.ones(new_pos.shape[0],
-                                                                                            dtype=np.int16)
-                new_pos[:, 0] += np.logical_and(dir == d.DIR_SOUTH,
-                                                has_south_exit[ind_ants_to_move]) * np.ones(new_pos.shape[0],
-                                                                                            dtype=np.int16)
+                new_pos[:, 1] -= np.logical_and(dir == d.DIR_WEST, has_west_exit[ind_ants_to_move]) * np.ones(
+                    new_pos.shape[0], dtype=np.int16)
+                new_pos[:, 1] += np.logical_and(dir == d.DIR_EAST, has_east_exit[ind_ants_to_move]) * np.ones(
+                    new_pos.shape[0], dtype=np.int16)
+                new_pos[:, 0] -= np.logical_and(dir == d.DIR_NORTH, has_north_exit[ind_ants_to_move]) * np.ones(
+                    new_pos.shape[0], dtype=np.int16)
+                new_pos[:, 0] += np.logical_and(dir == d.DIR_SOUTH, has_south_exit[ind_ants_to_move]) * np.ones(
+                    new_pos.shape[0], dtype=np.int16)
+
                 # Valid move if we didn't stay in place due to a wall
                 valid_moves[ind_ants_to_move] = np.logical_or(new_pos[:, 0] != old_pos[:, 0],
                                                               new_pos[:, 1] != old_pos[:, 1])
+
                 # and if we're not in the opposite direction of the previous move (and if there are other exits)
                 valid_moves[ind_ants_to_move] = np.logical_and(
                     valid_moves[ind_ants_to_move],
                     np.logical_or(dir != 3 - self.directions[ind_ants_to_move], nb_exits[ind_ants_to_move] == 1))
+
                 # Calculating indices of ants whose move we just validated:
                 ind_valid_moves = ind_ants_to_move[np.nonzero(valid_moves[ind_ants_to_move])[0]]
+
                 # For these ants, we update their positions and directions
                 self.historic_path[ind_valid_moves, self.age[ind_valid_moves] + 1, :] = new_pos[valid_moves[
                                                                                                     ind_ants_to_move] == 1,
                                                                                         :]
                 self.directions[ind_valid_moves] = dir[valid_moves[ind_ants_to_move] == 1]
 
-        ind_following_ants = np.nonzero(np.logical_and(choices[unloaded_ants] > exploration_coefs,
-                                                       max_pheromones[unloaded_ants] > 0.))[0]
+        ind_following_ants = \
+            np.nonzero(np.logical_and(choices[unloaded_ants] > exploration_coefs, max_pheromones[unloaded_ants] > 0.))[
+                0]
         if ind_following_ants.shape[0] > 0:
             ind_following_ants = unloaded_ants[ind_following_ants]
             self.historic_path[ind_following_ants, self.age[ind_following_ants] + 1, :] = \
@@ -205,8 +212,8 @@ class Colony:
             self.is_loaded[ants_at_food] = True
 
     def advance(self, the_maze, pos_food, pos_nest, pheromones, food_counter=0):
-        loaded_ants = np.nonzero(self.is_loaded == True)[0]
-        unloaded_ants = np.nonzero(self.is_loaded == False)[0]
+        loaded_ants = np.nonzero(self.is_loaded)[0]
+        unloaded_ants = np.nonzero(~self.is_loaded)[0]
         if loaded_ants.shape[0] > 0:
             food_counter = self.return_to_nest(loaded_ants, pos_nest, food_counter)
         if unloaded_ants.shape[0] > 0:
@@ -225,6 +232,6 @@ class Colony:
         return food_counter
 
     def display(self, screen):
-        [screen.blit(sprites[self.directions[i]],
-                     (8 * self.historic_path[i, self.age[i], 1], 8 * self.historic_path[i, self.age[i], 0])) for i in
-         range(self.directions.shape[0])]
+        for i in range(self.directions.shape[0]):
+            screen.blit(sprites[self.directions[i]],
+                        (8 * self.historic_path[i, self.age[i], 1], 8 * self.historic_path[i, self.age[i], 0]))
