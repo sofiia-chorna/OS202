@@ -19,7 +19,7 @@ TAG_MAZE = 2
 PLAYING = True
 
 
-def display(parameters, snapshop_taken=False, food_counter=0):
+def master_display(parameters, snapshop_taken=False, food_counter=0):
     # Initialize pygame screen
     screen_resolution = parameters["resolution"]
     screen = pg.display.set_mode(screen_resolution)
@@ -66,8 +66,10 @@ def display(parameters, snapshop_taken=False, food_counter=0):
         pg.image.save(screen, "MyFirstFood.png")
         snapshop_taken = True
 
+    return snapshop_taken
 
-def calculation():
+
+def slave_calculation():
     # Receive maze, food counter, and ants information from the master process
     a_maze, received_food_counter, ants = comm.bcast(None, root=0)
 
@@ -98,11 +100,23 @@ if __name__ == "__main__":
     # Get user parameters
     parameters = params.get_params()
 
+    snapshop_taken = False
+
     while PLAYING:
         # Master process handles display
         if rank == 0:
-            display(parameters)
+            snapshop_taken = master_display(parameters, snapshop_taken)
+
+            # Check for events to quit the game
+            for event in pg.event.get():
+                if event.type == pg.QUIT:
+                    PLAYING = False
+                elif event.type == pg.KEYDOWN:
+                    if event.key == pg.K_ESCAPE:
+                        PLAYING = False
 
         # Slave processes handle ant movement calculation
         else:
-            calculation()
+            slave_calculation()
+
+    pg.quit()
