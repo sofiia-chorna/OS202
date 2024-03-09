@@ -39,11 +39,14 @@ def initialize_parameters():
     pos_nest = 0, 0
     alpha = 0.9
     beta = 0.99
+    max_iterations = 50  # Default value
     if len(sys.argv) > 4:
         alpha = float(sys.argv[4])
     if len(sys.argv) > 5:
         beta = float(sys.argv[5])
-    return nb_ants, max_life, pos_food, pos_nest, alpha, beta
+    if len(sys.argv) > 6:
+        max_iterations = int(sys.argv[6])
+    return nb_ants, max_life, pos_food, pos_nest, alpha, beta, max_iterations
 
 
 def divide_ants_among_processes(nb_ants, max_life, pos_nest):
@@ -61,7 +64,7 @@ def divide_ants_among_processes(nb_ants, max_life, pos_nest):
 
 if __name__ == "__main__":
     screen, size_laby = initialize_screen()
-    nb_ants, max_life, pos_food, pos_nest, alpha, beta = initialize_parameters()
+    nb_ants, max_life, pos_food, pos_nest, alpha, beta, max_iterations = initialize_parameters()
     ants = divide_ants_among_processes(nb_ants, max_life, pos_nest)
     a_maze = maze.Maze(size_laby, 12345)
     pherom = pheromone.Pheromon(size_laby, pos_food, alpha, beta)
@@ -70,9 +73,10 @@ if __name__ == "__main__":
     food_counter = 0
     fps_counter = 0
     fps_mean = 0
+    iteration = 0  # Initialize iteration count
     finish = False
 
-    while True:
+    while not finish and iteration < max_iterations:  # Stop loop when reaching max_iterations
         # Handle events
         for event in pg.event.get():
             if event.type == pg.QUIT:
@@ -106,3 +110,5 @@ if __name__ == "__main__":
             fps_counter = 1
             fps_mean = 0
         print(f"FPS mean: {fps_mean / fps_counter:10.2f}, FPS counter: {fps_counter}, nourriture : {food_counter}", end='\r')
+
+        iteration += 1  # Increment iteration count
