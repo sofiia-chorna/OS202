@@ -39,7 +39,7 @@ def initialize_parameters():
     pos_nest = 0, 0
     alpha = 0.9
     beta = 0.99
-    max_iterations = 50  # Default value
+    max_iterations = 5000  # Default value
     if len(sys.argv) > 4:
         alpha = float(sys.argv[4])
     if len(sys.argv) > 5:
