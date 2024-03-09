@@ -83,12 +83,6 @@ class Maze:
 
         return maze_img
 
-    def get_maze(self):
-        """
-        Returns the maze array.
-        """
-        return self.maze
-
 
 if __name__ == "__main__":
     import time
