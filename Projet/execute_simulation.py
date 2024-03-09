@@ -1,6 +1,7 @@
 import subprocess
 import re
 import matplotlib.pyplot as plt
+import os
 
 
 def execute_script(num_processes, timeout=60):
@@ -32,9 +33,12 @@ def plot_results(processes, fps_means, speedup):
     plt.plot(processes, speedup, marker='o', label='Speedup')
     plt.title('FPS Mean and Speedup vs Number of Processes')
     plt.xlabel('Number of Processes')
-    plt.ylabel('Value')
-    plt.legend()
+    plt.ylabel('FPS Mean')
     plt.grid(True)
+
+    # Save graph
+    os.makedirs("graphs", exist_ok=True)
+    plt.savefig("graphs/fps_vs_processes.png")
     plt.show()
 
 
