@@ -31,6 +31,30 @@ Caches (sum of all):
 
 Cela indique que je dispose d'un processeur Intel Core i7 de 11e génération avec 8 cœurs, 4 cœurs par socket et 2 threads par cœur. La mémoire cache comprend 192 KiB pour L1d, 128 KiB pour L1i, 5 MiB pour L2 et 12 MiB pour L3.
 
+## Exécution
+```
+mpiexec -n <number of processus> python3 colorize1.py
+```
+Par example, pour exécuter avec 4 processus :
+```
+mpiexec -n 4 python3 colorize1.py
+```
 
+Pour le programme sans MPI, exécutez :
+```
+python3 colorize.py
+```
+
+## Résultats
+```markdown
+| N processes            | MPI Execution Time | Speedup               |
+|------------------------|--------------------|-----------------------|
+|           1            |     2.8145454      |        100%           |
+|           2            |     1.8266667      |        154%           |
+|           3            |     2.5645         |        109%           |
+|           4            |     2,83333334     |        99%            |
+
+Pour Q1, nous avons partagés l'image en tranches (N = numéro de processeurs) ou chaque a coloré sa partie, puis le processus racine a rassemblé toutes les fragmenets sur l'image finale.
+Pour Q2, nous avons utilisé la strategie maître-esclave, maître est responsable pour le calcul et la construction de l'image finale.
 
 
