@@ -279,15 +279,6 @@ def minimize(A: sparse.csr_matrix, b: np.array, x0: np.array, niters: int, epsil
     return x
 
 
-def slave():
-    # Receive from the master process
-    fix_coul_indices = comm.bcast(None, root=0)
-
-
-def master():
-    pass
-
-
 def get_fragment_width(width, size):
     return math.ceil(width / size)
 
@@ -376,10 +367,7 @@ def colorize(image, marked_image):
 
 def do_local_calculation(local_width):
     # Get width of the fragment
-    if rank < size - 1:
-        fragment_width = math.ceil(local_width)
-    else:
-        fragment_width = math.floor(local_width)
+    fragment_width = math.ceil(local_width) if rank < size - 1 else math.floor(local_width)
 
     # Get fragments of image
     cropped_image = im_gray.crop((offset, 0, offset + fragment_width, height - 1))
@@ -390,10 +378,9 @@ def do_local_calculation(local_width):
 
 
 """
-Dans un premier temps, faites une partition de l'image en nbp tranches d'images
-et demandez à chaque processus d'essayer de coloriser sa portion d'image
-à partir des conditions de Dirichlet correspondant à sa portion d'image
-et en construisant une matrice uniquement locale à cette portion d'image.
+Dans un premier temps, faites une partition de l'image en nbp tranches d'images et demandez à chaque processus
+d'essayer de coloriser sa portion d'image à partir des conditions de Dirichlet correspondant
+à sa portion d'image et en construisant une matrice uniquement locale à cette portion d'image.
 """
 if __name__ == '__main__':
     im_gray = Image.open(GRAY_IMG_FILENAME)
