@@ -8,17 +8,28 @@ import numpy as np
 from numpy import linalg
 from scipy import sparse
 import time
+import math
 from mpi4py import MPI
 
 comm = MPI.COMM_WORLD
 size = comm.size
 rank = comm.rank
 
+# Tags form MPI communication
+MATRIX_VECTOR_TAG = 1
+MATRIX_VECTOR_DONE_TAG = 2
+STOP_TAG = 3
+EXIT_TAG = 4
+
+# Flag for the loop
+CALCULATING = True
+
+# File names
 GRAY_IMG_FILENAME = "example.bmp"
 MARKED_IMG_FILENAME = "example_marked.bmp"
 OUTPUT_FILENAME = "example.png"
 
-niters = 50_000
+niters = 10
 epsilon = 1.E-10
 
 HUE = 0
@@ -189,16 +200,20 @@ def compute_matrix(image_size, i_start, intensity, means, variance):
     """
     ny = means.shape[0] - 2
     nx = means.shape[1] - 2
-    # Dimension de la matrice (rectangulaire pour interaction avec ghost cells )
+
+    # Dimension de la matrice (rectangulaire pour interaction avec ghost cells)
     dim = nx * ny
+
     # Nombre d'elements non nuls prevus pour la matrice :
     nnz = 9 * (nx - 2) * (ny - 2) + 12 * ((nx - 2) + (ny - 2)) + 16
     if i_start > 0:
         nnz += 3 * (nx - 2) - 8
     if i_start + ny < image_size[1] - 1:
         nnz += 3 * (nx - 2) - 8
+
     # Indices du début des lignes dans les tableaux indCols et coefficients :
     beg_rows = np.zeros(dim + 1, dtype=np.int64)
+
     # Indices colonnes des elements non nuls :
     ind_cols = np.empty(nnz, dtype=np.int64)
     coefs = np.empty(nnz, dtype=np.double)
@@ -209,6 +224,7 @@ def compute_matrix(image_size, i_start, intensity, means, variance):
         for jcol in range(nx):
             assembly_row(image_size, i_start, intensity, means, variance, (irow, jcol), beg_rows, ind_cols, coefs)
     assert (beg_rows[-1] == nnz)
+
     # On retourne la matrice sous forme d'une matrice creuse stockee en csr avec scipy
     return sparse.csr_matrix((coefs, ind_cols, beg_rows), dtype=np.double)
 
@@ -238,16 +254,48 @@ def apply_dirichlet(A: sparse.csr_matrix, dirichlet: np.array):
                     A.data[jcol] = 0.
 
 
+def get_matrix_vector_product(matrix, vector):
+    dim = vector.shape[0]
+    n_fragments = size
+    lines_per_fragment = math.ceil(dim / n_fragments)
+
+    for i in range(1, size):
+        start_i = lines_per_fragment * i
+        end_i = start_i + lines_per_fragment
+        if i == size - 1:
+            end_i = start_i + math.floor(dim / n_fragments)
+        matrix_fragment = matrix[start_i:end_i]
+        comm.send((matrix_fragment, vector), dest=i, tag=MATRIX_VECTOR_TAG)
+
+    result = []
+    # Here we calculate the first fragment on master while slave p-s are busy
+    result_part = matrix[0:lines_per_fragment].dot(vector)
+    result.append(result_part)
+
+    for i in range(1, size):
+        (result_part, i) = comm.recv(source=i, tag=MATRIX_VECTOR_DONE_TAG)
+        result.append(result_part)
+
+    return np.hstack(result)
+
+
 def minimize(A: sparse.csr_matrix, b: np.array, x0: np.array, niters: int, epsilon: float):
     """
     Minimise la fonction quadratique a l'aide d'un gradient conjugue
     """
-    r = b - A.dot(x0)
+    a_dot_x0 = get_matrix_vector_product(A, x0)
+    r = b - a_dot_x0
     nrm_r0 = linalg.norm(r)
-    gc = A.transpose().dot(r)
+
+    a_transposed_dot_r = get_matrix_vector_product(A.transpose(), r)
+    gc = a_transposed_dot_r
+
     x = np.copy(x0)
     p = np.copy(gc)
-    cp = A.dot(p)
+
+    a_dot_p = get_matrix_vector_product(A, p)
+    cp = a_dot_p
+
     nrm_gc = linalg.norm(gc)
     nrm_cp = linalg.norm(cp)
     alpha = nrm_gc * nrm_gc / (nrm_cp * nrm_cp)
@@ -256,35 +304,36 @@ def minimize(A: sparse.csr_matrix, b: np.array, x0: np.array, niters: int, epsil
     nrm_r = linalg.norm(r)
     gp = np.copy(gc)
     nrm_gp = nrm_gc
-    gc = A.transpose().dot(r)
+    gc = a_transposed_dot_r
+
     for i in range(1, niters):
         print(f"Iteration {i:06}/{niters:06} -> ||r||/||r0|| = {nrm_r / nrm_r0:16.14}", end='\r')
         nrm_gc = linalg.norm(gc)
-        if nrm_gc < 1.E-14: return x
+
+        if nrm_gc < 1.E-14:
+            return x
+
         beta = -nrm_gc * nrm_gc / (nrm_gp * nrm_gp)
         p = gc - beta * p
-        cp = A.dot(p)
+        cp = a_dot_p
         nrm_cp = linalg.norm(cp)
         alpha = nrm_gc * nrm_gc / (nrm_cp * nrm_cp)
         x += alpha * p
         r -= alpha * cp
         gp = np.copy(gc)
         nrm_gp = nrm_gc
-        gc = A.transpose().dot(r)
+        gc = a_transposed_dot_r
         nrm_r = linalg.norm(r)
-        if nrm_r < epsilon * nrm_r0: break
+
+        if nrm_r < epsilon * nrm_r0:
+            break
     return x
 
 
-if __name__ == '__main__':
-    # On va charger l'image afin de lire l'intensite de chaque pixel.
-    # Puis on va creer un tableau contenant deux couches de cellules fantomes
-    # pour pouvoir calculer facilement la moyenne puis la variance de chaque pixel
-    # avec ses huit voisins immediats.
-    im_gray = Image.open(gray_img)
-    im_gray = im_gray.convert('HSV')
+def colorize(image, marked_image):
     # On convertit l'image en tableau (ny x nx x 3) (Trois pour les trois composantes de la couleur)
-    values_gray = np.array(im_gray)
+    values_gray = np.array(image)
+
     # On créer le tableau d'intensite en rajoutant deux couches de cellules fantomes dans chaque direction :
     intensity = (1. / 255.) * create_field(values_gray, INTENSITY, nb_layers=2, prolong_field=True)
 
@@ -294,6 +343,7 @@ if __name__ == '__main__':
     means = compute_means(intensity)
     end = time.time() - deb
     print(f"Temps calcul moyenne : {end} secondes")
+
     # Calcul de la variance de l'intensite pour chaque pixel avec ses huit voisins
     # La variance contient une couche de cellules fantomes comme la moyenne.
     deb = time.time()
@@ -308,8 +358,7 @@ if __name__ == '__main__':
     print(f"Temps calcul matrice : {end} secondes")
 
     # Calcul des seconds membres
-    im = Image.open(marked_img)
-    im_ycbcr = im.convert('YCbCr')
+    im_ycbcr = marked_image.convert('YCbCr')
     val_ycbcr = np.array(im_ycbcr)
     # Les composantes Cb (bleu) et Cr (Rouge) sont normalisees :
     Cb = (1. / 255.) * np.array(val_ycbcr[:, :, CB].flat, dtype=np.double)
@@ -321,14 +370,14 @@ if __name__ == '__main__':
     end = time.time() - deb
     print(f"Temps calcul des deux seconds membres : {end} secondes")
 
-    im_hsv = im.convert("HSV")
+    im_hsv = marked_image.convert("HSV")
     val_hsv = np.array(im_hsv)
     deb = time.time()
     fix_coul_indices = search_fixed_colored_pixels(val_hsv)
     end = time.time() - deb
     print(f"Temps recherche couleur fixee : {end} secondes")
 
-    # Application de la condition de Dirichlet sur la matrice :    
+    # Application de la condition de Dirichlet sur la matrice :
     deb = time.time()
     apply_dirichlet(A, fix_coul_indices)
     end = time.time() - deb
@@ -351,11 +400,68 @@ if __name__ == '__main__':
     new_Cr *= 255.
     intensity *= 255.
 
-    # Puis on sauve l'image dans un fichier :
+    # Puis, on sauve l'image dans un fichier :
     shape = (means.shape[0] - 2, means.shape[1] - 2)
     new_image_array = np.empty((shape[0], shape[1], 3), dtype=np.uint8)
     new_image_array[:, :, 0] = intensity[2:-2, 2:-2].astype('uint8')
     new_image_array[:, :, 1] = np.reshape(new_Cb, shape).astype('uint8')
     new_image_array[:, :, 2] = np.reshape(new_Cr, shape).astype('uint8')
     new_im = Image.fromarray(new_image_array, mode='YCbCr')
-    new_im.convert('RGB').save(output, 'PNG')
+
+    # Convert to RGB
+    return new_im.convert('RGB')
+
+
+def master():
+    im_gray = Image.open(GRAY_IMG_FILENAME).convert('HSV')
+    im_marked = Image.open(MARKED_IMG_FILENAME)
+
+    # Start the timer
+    start_time = time.time()
+
+    # Colorize the image
+    colorized_image = colorize(im_gray, im_marked)
+    colorized_image.save(OUTPUT_FILENAME, 'PNG')
+    colorisation_time_end = time.time()
+    print("Colorisation is ready", colorisation_time_end - start_time)
+
+    # Send stop signals to all slaves
+    for i in range(1, size):
+        comm.send(None, dest=i, tag=STOP_TAG)
+
+    # Wait for all slaves to finish
+    for i in range(1, size):
+        comm.recv(source=MPI.ANY_SOURCE, tag=EXIT_TAG)
+
+    MPI.Finalize()
+    exit(0)
+
+
+def slave():
+    status = MPI.Status()
+
+    # Receive the matrix and vector from the master
+    matrix, vector = comm.recv(source=0, tag=MATRIX_VECTOR_TAG)
+
+    # Perform matrix-vector multiplication until stopped
+    while CALCULATING:
+        # Check if the master sent a stop signal
+        if status.Get_tag() == STOP_TAG:
+            # Send exit signal and terminate
+            comm.send(obj=None, dest=0, tag=EXIT_TAG)
+            exit(0)
+
+        product = matrix.dot(vector)
+        comm.send((product, rank), dest=0, tag=MATRIX_VECTOR_DONE_TAG)
+
+
+"""
+Dans un deuxième temps, construire une partie de la matrice globale (correspondant à l'image complète)
+et paralléliser les produits matrice-vecteur ainsi que le gradient conjugué
+afin de résoudre un problème global en parallèle plutôt que plusieurs problèmes locaux.
+"""
+if __name__ == '__main__':
+    if rank == 0:
+        master()
+    else:
+        slave()
